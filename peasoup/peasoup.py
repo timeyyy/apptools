@@ -9,6 +9,7 @@ import logging
 import platform
 import shutil
 import traceback
+import time
 # all these here are for upload log file
 import tkinter as tk
 import tkinter.ttk as ttk
@@ -75,12 +76,12 @@ class AppBuilder():
     def __init__(self, name):
         self.app_name = name
         self.shutdown_cleanup = {}
+        self.start_time = time.time()
 
     
     def create_cfg(self, cfg_file, defaults=None, mode='json'):
         '''
-        # todo should be able to habe multiple cfgs active, such as usercfg?
-        set mode to json or yaml
+        set mode to json or yaml? probably remove this option..Todo
 
         Creates the config file for your app with default values
         The file will only be created if it doesn't exits
@@ -266,7 +267,6 @@ class AppBuilder():
 
     def _check_if_open_using_config(self):
         key = 'is_programming_running_info'
-        logging.info('holy shit')
         try:
             values = self.cfg[key]
             if os.name == 'posix':
@@ -276,7 +276,6 @@ class AppBuilder():
                 old_pid, hwnd = values
             name, exists = pidutil.process_exists(int(old_pid))
             if not exists:
-                logging.info('DOESNT EXIST')
                 del self.cfg[key]
                 self.cfg.save()
                 logging.debug(
@@ -357,6 +356,8 @@ class AppBuilder():
         logging.info('Shutdown procedures being run!')
         for func in self.shutdown_cleanup.values():
             func()
+        session_time = round((time.time() - self.start_time)/60, 0)
+        logging.info('session time: {0} minutes'.format(session_time))
         logging.info('End..')
 
     @classmethod
