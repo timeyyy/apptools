@@ -351,13 +351,13 @@ class AppBuilder():
     def shutdown(self):
         ''' shutdown operations on exit, this is run by
         a finaly statement after the tkinter mainloop ends
-        call root.quit to get here
+        call root.quit to get here,
+        Note you will still need to call sys.exit()
         '''
         logging.info('Shutdown procedures being run!')
         for func in self.shutdown_cleanup.values():
             func()
         logging.info('End..')
-        sys.exit()
 
     @classmethod
     def app_restart(cls):
