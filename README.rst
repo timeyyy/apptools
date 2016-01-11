@@ -68,7 +68,11 @@ Conclusion
 I think a strong side benifet of such an app would be that it would help newbies and kids really get some cool results fast.
 If people can make some simple game and bundle it quickly and start showing their friends i feel it will help give python a big boost in popularity. 
 
-
+implementation
+==============
+Is abstracting the builder into something like sphinx even worth while? It might look something like this.
+ [ ] add entires to a yaml file for config? 
+ [ ] simple form builder which saves into a databse so we can abuse if where select to check for compatibliy between stuff?
 gui
 ===
 This is probably out of this scope but anyway..
