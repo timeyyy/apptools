@@ -20,12 +20,14 @@ import json
 from contextlib import suppress
 from pprint import pprint
 
+
 try:
     import yaml
 except ImportError:
     pass
 import tkquick.gui.maker as maker
 from timstools import parent_path, ignored
+import esky
 
 if os.name == 'nt':
     import win32security
@@ -386,21 +388,8 @@ class AppBuilder():
     def esky_bootstrap_path():
         '''
         returns the executable path
-
-        the esky path is either one or two directories up, depending on the update
-        status of our app. returns the toplevel directory where the executable lives
-
-        C:\\Program Files (x86)\\Uncrumpled             Before Updated
-        C:\\Program Files (x86)\\Uncrumpled\appdata     After updated
         '''
-        if hasattr(sys, 'frozen'):
-            if os.path.basename(parent_path(os.getcwd())) == 'appdata':
-                esky_path = parent_path(os.getcwd(), 2)
-            else:
-                esky_path = parent_path(os.getcwd(), 1)
-            return esky_path
-        else:
-            return os.path.dirname(sys.executable)
+        return esky.util.appdir_from_executable(sys.executable)
 
 
 def setup_logger(log_file):
