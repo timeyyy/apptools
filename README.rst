@@ -20,7 +20,7 @@ What the user gets for free
 - put data files in correct location
 - set permissions on files
 - setup manifest files
-- constants such as your name saved in one place
+- constants such as your app name saved in one place
 - uploading error logs to server, setup logging with sensible defaults
 - define system tray, title bar, global hotkeys
 - easy to use config file for system info
@@ -70,11 +70,13 @@ If people can make some simple game and bundle it quickly and start showing thei
 
 implementation
 ==============
-Is abstracting the builder into something like sphinx even worth while? It might look something like this.
- [ ] add entires to a yaml file for config? 
- [ ] simple form builder which saves into a databse so we can abuse if where select to check for compatibliy between stuff?
-gui
-===
+Seems like `bob the builder<https://github.com/iElectric/mr.bob>`_ is perfect for building our ccli questions and resulting templates. 
+
+Seems like `Scons <http://www.scons.org/>`_ and `pybuilder <https://github.com/pybuilder/pybuilder>`_ are perfect for automating our tests/linters/deploy
+
+
+gui (other stuff)
+==================
 This is probably out of this scope but anyway..
 
 
