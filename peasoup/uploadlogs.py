@@ -40,8 +40,11 @@ class LogUploader():
         :param logger:
         :return:
         '''
-        logger.exception('Unexpected runtime Error...')
         traceback.print_exc()
+        if logger: 
+            logger.exception('Unexpected runtime Error...')
+        else:
+            self.logger.exception('Unexpected runtime Error...')
 
     def upload_logs(self, release_singleton=True):
         '''
@@ -49,56 +52,55 @@ class LogUploader():
         in self.pcfg
         singleton mode can be disabled so a new version can be restarted whille uploading oges
         on typicallin in the case of uploadnig after a crash or sys exit
-        set self.cfg upload_interface to gui/cli/or background
+        set self.cfg log_upload_interface to gui/cli/or background
         '''
         if release_singleton:
-            raise NotImplementedError
-            # Todo self.peasoup.cfg.r
-            pass
+            self.release_singleton()
 
         def threadme():
             for log in self.getlogs():
-                new_name = self.uniquename(log)
+                new_name = self._uniquename(log)
                 self._upload(log, new_name)
                 # To do: keep log around for a few days
                 os.remove(log)
 
-        if self.pcfg['upload_interface'] == 'gui':
+        if self.pcfg['log_server_interface'] == 'gui':
             gui_uploader(threadme)
-        elif self.pcfg['upload_interface'] == 'cli':
+        elif self.pcfg['log_server_interface'] == 'cli':
             raise NotImplementedError
-        elif self.pcfg['upload_interface'] == 'background':
-            thread.start_new_thread(threadme, '',)
+        elif self.pcfg['log_server_interface'] == 'background':
+            thread.start_new_thread(threadme, (),)
 
     def getlogs(self):
         '''returns logs from disk'''
         folder = os.path.dirname(self.pcfg['log_file'])
-        for path, dir, files in os.scandir(folder):
+        for path, dir, files in os.walk(folder):
             for file in files:
                 yield os.path.join(path, file)
 
-    def uniquename(self, log):
+    def _uniquename(self, log):
         '''
         renames the log to ensure we get no clashes on the server
         subclass this to change the path etc'''
         return '{hostname} - {time}.log'.format(
                                 hostname=os.getenv('USERNAME'),
-                               time=strftime("%a, %d %b %Y %H-%M-%S", gmtime()))
+                                time=strftime("%a, %d %b %Y %H-%M-%S", gmtime()))
 
     def _upload(self, log, new_name):
-        if self.pcfg['upload_method'] == 'sftp':
+        if self.pcfg['log_server_method'] == 'sftp':
             import pysftp
-            # Todo remove the
             from peasoup.util import sftp_upload_window_size_set
             try:
                 srv = pysftp.Connection(host=self.pcfg['log_server_host'],
-                                        username=self.pcfg['log_server_name'],
+                                        username=self.pcfg['log_server_username'],
                                         password=self.pcfg['log_server_password'],
                                         port=self.pcfg['log_server_port'])
                 self.logger.info(
-                        'Uploading log to server %s' % self.pcfg['log_server_name'])
+                        'Uploading log to server %s' % self.pcfg['log_server_host'])
                 sftp_upload_window_size_set(srv, log)
                 srv.put(log, new_name)
+            except pysftp.ConnectionError:
+                raise pysftp.ConnectionError('Could not connecto to log server')
             finally:
                 with suppress(UnboundLocalError):
                     srv.close()
@@ -106,9 +108,18 @@ class LogUploader():
             # need to implement the gui uploaders...
             raise NotImplementedError
 
+    def release_singleton(self):
+        raise NotImplementedError('Please subclass')
+
     def rot13(self):
-        ''' Very secure encryption'''
+        ''' Very secure encryption (ceaser used it)'''
         return crypto(bytes(self.pcfg['log_server_password']).decode())
+
+def add_date(log):
+    '''Userful for randomizing the name of a log'''
+    return '{base} - {time}.log'.format(
+			base=os.path.splitext(log)[0],
+			time=strftime("%a, %d %b %Y %H-%M-%S", gmtime()))
 
 
 # def handle_fatal_exception(

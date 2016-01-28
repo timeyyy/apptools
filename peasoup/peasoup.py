@@ -4,14 +4,14 @@ see design spec
 '''
 import os
 import sys
-import logging
 import platform
 import time
 import inspect
+import logging
 
-from timstools import ignored
+from timstools import ignored as suppress
 
-# from peasoup import pidutil       # delete this after done integrating get pid
+from peasoup import pidutil       # Todo delete this after done integrating get pid
 from peasoup.util import lazy_import
 from peasoup.uploadlogs import LogUploader
 
@@ -45,6 +45,9 @@ class CfgDict(dict):
     add some new mothods after the fact,
     This is a collection of methods for our config dict
     Pass in the old dict and wrap on some shiny new methods
+
+    This is jus like a decorator but i'm not using the 
+    explict syntax on it #TODO
     '''
     def __init__(self, app, cfg):
         super().__init__(self, **cfg)
@@ -75,13 +78,14 @@ class AppBuilder(LogUploader):
     need to run the functions in self.shutdown_cleanup on shutdown
     '''
 
-    def __init__(self, name):
-        self.app_name = name
+    def __init__(self):
+        self.pcfg = self.get_pcfg()
+        self.app_name = self.pcfg['app_name']
         self.shutdown_cleanup = {}
         self.start_time = time.time()
-        self.set_pcfg()
 
-    def set_pcfg(self):
+    @staticmethod
+    def get_pcfg():
         '''
         sets up the config options by reading globals saved in peasoup/global.py
         as self.pcfg
@@ -93,7 +97,8 @@ class AppBuilder(LogUploader):
                             PEASOUP_USER_DIR,
                             PEASOUP_CONFIG_FILE)
         with open(cfg) as f:
-            self.pcfg = json.load(f)
+            pcfg = json.load(f)
+        return pcfg
 
     def create_cfg(self, cfg_file, defaults=None, mode='json'):
         '''
@@ -109,7 +114,7 @@ class AppBuilder(LogUploader):
         you can add custom stuff to the config by doing
         app.cfg['fkdsfa'] = 'fdsaf'
         # todo auto save on change
-        remember to call app.cfg.save()
+        remember to call cfg.save()
 
         '''
         assert mode in ('json', 'yaml')
@@ -261,7 +266,7 @@ class AppBuilder(LogUploader):
         #~ f.write(str(hwnd))
         #~ logging.info('adding hwnd to running info :'+str(hwnd))
         #~
-        logging.info('Checking if A window is already Open')
+        logging.info('Checking if our app is already Open')
         if not path and self.cfg:
             self._check_if_open_using_config()
         elif path:
@@ -272,14 +277,18 @@ class AppBuilder(LogUploader):
                 self.check_file = path
             self._check_if_open_using_path()
 
-        def cleanup():
-            # These have to be removed for us to know if its closed
-            with suppress(KeyError):
-                del self.cfg['is_programming_running_info']
-            with suppress(FileNotFoundError, AttributeError):
-                os.remove(self.check_file)
+        self.shutdown_cleanup['release_singleton'] = self.release_singleton
 
-        self.shutdown_cleanup['remove_check_if_open_flag'] = cleanup
+    def release_singleton(self):
+        '''deletes the data that lets our program know if it is
+        running as singleton when calling check_if_open,
+        i.e check_if_open will return fals after calling this
+       '''
+        with suppress(KeyError):
+            del self.cfg['is_programming_running_info']
+        with suppress(FileNotFoundError, AttributeError):
+            os.remove(self.check_file)
+
 
     def _check_if_open_using_config(self):
         key = 'is_programming_running_info'
@@ -305,7 +314,7 @@ class AppBuilder(LogUploader):
                     hwnd = pywintypes.HANDLE(int(hwnd))
                     pidutil.show_window(hwnd)
                 logging.info('Exiting new instance of our program')
-            sys.exit()
+            sys.exit(800)
 
         except(KeyError, ValueError):
             # Start program normally
@@ -376,38 +385,17 @@ class AppBuilder(LogUploader):
         logging.info('session time: {0} minutes'.format(session_time))
         logging.info('End..')
 
-    @classmethod
-    def app_restart(cls):
-        '''
-        Restart a frozen esky app
-        Can also restart if the program is being run as a script
-        passes restarted as an argument to the restarted app
-        '''
-        import subprocess #TODO MOVE?
-        logging.debug('In restarter')
-        executable = sys.executable.split(os.sep)[-1]
-        if os.name == 'nt':
-            logging.info('executable is is %s' % executable)
-            # restart works here when testing compiled version only
-            if executable != 'python.exe':
-                boot_strap_path = cls.esky_bootstrap_path()
-                bootstrap_file = os.path.join(boot_strap_path, executable)
-                logging.info('Bootstrap file for restart: %s' % bootstrap_file)
-
-                subprocess.Popen(
-                    [os.path.join(bootstrap_file, bootstrap_file), 'restarted'])
-        #~ os.execl(bootstrap_file, bootstrap_file, * sys.argv)     # TBD make this work This restarts our process and doesn't return, for somet reason the new restarted version is the old and all fucked
-
-    @staticmethod
-    def esky_bootstrap_path():
-        '''
-        returns the executable path
-        '''
-        return esky.util.appdir_from_executable(sys.executable)
-
 
 def setup_logger(log_file):
     '''One function call to set up logging with some nice logs about the machine'''
+    cfg = AppBuilder.get_pcfg()
+    logger = cfg['log_module']
+    # todo make sure structlog is compliant and that logbook is also the correct name???
+    assert logger in ("logging", "logbook", "structlog"), 'bad logger specified'
+    exec("import {0};logging = {0}".format(logger))
+
+    AppBuilder.logger = logging
+
     logging.basicConfig(
         filename=log_file,
         filemode='w',

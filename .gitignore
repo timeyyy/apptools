@@ -3,3 +3,4 @@ peasoup/__pycache__
 *~
 build/
 *.pyc
+.idea/
