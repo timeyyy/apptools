@@ -1,43 +1,43 @@
 #~ Copyright 2015 Timothy C Eichler (c) , All rights reserved.
 '''
-see design spec 
+see design spec
 '''
 import os
 import sys
-import platform
 import logging
 import platform
-import shutil
-import traceback
 import time
-# all these here are for upload log file
-import tkinter as tk
-import tkinter.ttk as ttk
-from tkinter import messagebox
-import _thread as thread
-import queue
-import json
-from contextlib import suppress
-from pprint import pprint
+import inspect
 
+from timstools import ignored
 
-try:
+# from peasoup import pidutil       # delete this after done integrating get pid
+from peasoup.util import lazy_import
+from peasoup.uploadlogs import LogUploader
+
+@lazy_import
+def json():
+    import json
+    return json
+
+@lazy_import
+def yaml():
     import yaml
-except ImportError:
-    pass
-import tkquick.gui.maker as maker
-from timstools import parent_path, ignored
-import esky
+    return yaml
+
+@lazy_import
+def esky():
+    import esky
+    return esky
 
 if os.name == 'nt':
     import win32security
     import ntsecuritycon as con
     import win32api
     import pywintypes
-try:
-    from . import pidutil       # delete this after done integrating get pid
-except ImportError:
-    from . import pidutil
+
+PEASOUP_USER_DIR = 'autobots'
+PEASOUP_CONFIG_FILE = 'config.json'
 
 class CfgDict(dict):
     '''
@@ -66,7 +66,7 @@ class CfgDict(dict):
             with open(self.app.cfg_file, 'w')as opened_file:
                 yaml.dump(self.app.cfg, opened_file)
 
-class AppBuilder():
+class AppBuilder(LogUploader):
 
     '''
     Add functions to the dictionary -> self.shutdown_cleanup
@@ -79,8 +79,22 @@ class AppBuilder():
         self.app_name = name
         self.shutdown_cleanup = {}
         self.start_time = time.time()
+        self.set_pcfg()
 
-    
+    def set_pcfg(self):
+        '''
+        sets up the config options by reading globals saved in peasoup/global.py
+        as self.pcfg
+        '''
+        original_calling_script = inspect.stack()[-1][1]
+        path = os.path.dirname(original_calling_script)
+        cfg = os.path.join(
+                            path,
+                            PEASOUP_USER_DIR,
+                            PEASOUP_CONFIG_FILE)
+        with open(cfg) as f:
+            self.pcfg = json.load(f)
+
     def create_cfg(self, cfg_file, defaults=None, mode='json'):
         '''
         set mode to json or yaml? probably remove this option..Todo
@@ -446,105 +460,15 @@ def set_windows_permissions(filename):
             sd)
 
 
-# TBD THIS IS TKINTER SPECIF SO MOVE IT OUT!
-def handle_fatal_exception(
-        error,
-        restarter,
-        file,
-        host,
-        username,
-        password,
-        port,
-        pre_restarter='gui',
-        output=None):
-    '''
-    uploads a log to a server
-    displays a progress widget using tktiner
-    restart function is required in the case of the user wanting to restart
-    '''
-    def upload_log():
-        # this is run in a thread
-        nonlocal output
-        import pysftp
-        from time import gmtime, strftime
-        from timstools import sftp_upload_window_size_set
-        try:
-            srv = pysftp.Connection(host=host, username=username, password=password, port=port)
-            logging.info('Uploading log to server')
-            sftp_upload_window_size_set(srv, file)
-            if not output:
-                output = os.getenv(
-                    'USERNAME') + '-' + strftime("%a, %d %b %Y %H-%M-%S", gmtime()) + '.log'
-            srv.put(file, output)
-        except pysftp.ConnectionException:
-            pass
-        finally:
-            with suppress(UnboundLocalError):
-                srv.close()
-            tkinter_queue.put(root.quit)
+def setup_raven():
+    '''we setup sentry to get all stuff from our logs'''
+    from raven.handlers.logging import SentryHandler
+    from raven import Client
+    from raven.conf import setup_logging
+    client = Client(self.pcfg['raven_dsn'])
+    handler = SentryHandler(client)
+    # TODO VERIFY THIS -> This is the way to do it if you have a paid account, each log call is an event so this isn't going to work for free accounts...
+    handler.setLevel(self.pcfg["raven_loglevel"])
+    setup_logging(handler)
+    return client
 
-    def poll_tkinter_queue():
-        # tktiner after method not avaliable from other threads!,
-        # this runs functions put on the queue
-        try:
-            func = tkinter_queue.get(block=False)
-        except queue.Empty:
-            pass
-        else:
-            func()
-        root.after(100, poll_tkinter_queue)
-
-    import traceback
-    print()
-    traceback.print_exc()
-    logging.exception('Unexpected runtime Error Occured')
-    root = tk.Tk()
-    root.withdraw()
-    
-    tkinter_queue = queue.Queue()
-    thread.start_new_thread(upload_log, ())
-    root.after(100, poll_tkinter_queue)
-    #~ ttk.Label(root, text='Uploading error logs! please wait...').pack()
-    #~ prog = ttk.Progressbar(root, mode='indeterminate', length=100)
-    #~ prog.pack()
-    #~ prog.start()
-    #~ maker.center_window(root, 100, 20)
-    #~ root.deiconify()
-    root.mainloop()
-
-    if pre_resstarter == 'gui':
-        if messagebox.askyesno(
-                'Unexpected Error',
-                ' Sorry for the inconvienience. Would you like to restart?',
-                parent=root):
-
-            logging.debug('running restarter function')
-            restarter()
-    else:
-        print('TODO custom pre restart')
-        # pre_restarter()
-        # restart()
-
-
-class TkErrorCatcher:  # Tbd move this code elsewhere
-
-    '''
-    Enables the program to handle errors caused in events
-    without tktiner muting them and only printing the traceback.
-    '''
-
-    def __init__(self, func, subst, widget):
-        self.func = func
-        self.subst = subst
-        self.widget = widget
-
-    def __call__(self, *args):
-        try:
-            if self.subst:
-                args = self.subst(*args)
-            return self.func(*args)
-        except SystemExit as msg:
-            raise SystemExit(msg)
-        except Exception as err:
-            raise err
-            #~ traceback.print_exc(file=open('test.log', 'a'))

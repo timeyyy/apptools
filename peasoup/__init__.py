@@ -1,2 +1,2 @@
-from .peasoup import *
-from .pidutil import *
+from peasoup.peasoup import *
+from peasoup.pidutil import *
