@@ -76,9 +76,12 @@ class AppBuilder(LogUploader):
     the functions will be run on cleanup, if you choose not, to use
     the shutdown function and use the check_if_open function you will
     need to run the functions in self.shutdown_cleanup on shutdown
+
+    main file is required to get the abspath of the script
     '''
 
-    def __init__(self):
+    def __init__(self, main_file):
+        AppBuilder.main_file = main_file
         self.pcfg = self.get_pcfg()
         self.app_name = self.pcfg['app_name']
         self.shutdown_cleanup = {}
@@ -90,13 +93,11 @@ class AppBuilder(LogUploader):
         sets up the config options by reading globals saved in peasoup/global.py
         as self.pcfg
         '''
-        original_calling_script = inspect.stack()[-1][1]
-        path = os.path.dirname(original_calling_script)
-        cfg = os.path.join(
-                            path,
+        path = os.path.dirname(AppBuilder.main_file)
+        file = os.path.join(path,
                             PEASOUP_USER_DIR,
                             PEASOUP_CONFIG_FILE)
-        with open(cfg) as f:
+        with open(file) as f:
             pcfg = json.load(f)
         return pcfg
 
@@ -125,7 +126,7 @@ class AppBuilder(LogUploader):
             logging.info('cfg file found : %s' % self.cfg_file)
         except FileNotFoundError:
             self.cfg = CfgDict(app=self, cfg={'first_run': True})
-            with ignored(TypeError):
+            with suppress(TypeError):
                 self.cfg.update(defaults)
             self.cfg.save()
             set_windows_permissions(self.cfg_file)
@@ -450,13 +451,14 @@ def set_windows_permissions(filename):
 
 def setup_raven():
     '''we setup sentry to get all stuff from our logs'''
+    pcfg = AppBuilder.get_pcfg()
     from raven.handlers.logging import SentryHandler
     from raven import Client
     from raven.conf import setup_logging
-    client = Client(self.pcfg['raven_dsn'])
+    client = Client(pcfg['raven_dsn'])
     handler = SentryHandler(client)
     # TODO VERIFY THIS -> This is the way to do it if you have a paid account, each log call is an event so this isn't going to work for free accounts...
-    handler.setLevel(self.pcfg["raven_loglevel"])
+    handler.setLevel(pcfg["raven_loglevel"])
     setup_logging(handler)
     return client
 

@@ -4,6 +4,7 @@
 
 """
 import sys
+import os
 
 #  Since Peaoup will have
 #  every invocation, we want as little overhead as possible when importing

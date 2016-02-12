@@ -1,10 +1,10 @@
 
-from peasoup.util import lazy_import
-
 from time import gmtime, strftime
 from contextlib import suppress
 from base64 import b64decode as crypto
+import codecs
 
+from peasoup.util import lazy_import
 
 @lazy_import
 def traceback():
@@ -12,11 +12,9 @@ def traceback():
     return traceback
 
 @lazy_import
-def thread():
-    import _thread as thread
-    return thread
-
-import queue
+def threading():
+    import threading
+    return threading
 
 @lazy_import
 def os():
@@ -26,9 +24,7 @@ def os():
 
 import tkquick.gui.maker as maker
 from peasoup.gui import uploader as gui_uploader
-
 import tkinter.ttk as ttk
-# TBD THIS IS TKINTER SPECIF SO MOVE IT OUT!
 from peasoup.gui import uploader as gui_uploader
 
 class LogUploader():
@@ -57,27 +53,39 @@ class LogUploader():
         if release_singleton:
             self.release_singleton()
 
-        def threadme():
-            for log in self.getlogs():
+        def _upload():
+            for log in self.get_logs():
                 new_name = self._uniquename(log)
                 self._upload(log, new_name)
-                # To do: keep log around for a few days
-                os.remove(log)
+                # Todo: keep log around for a few days
+                self.delete_log(log)
 
         if self.pcfg['log_server_interface'] == 'gui':
+            raise NotImplementedError
+            threading.Thread(target=threadme)
             gui_uploader(threadme)
         elif self.pcfg['log_server_interface'] == 'cli':
             raise NotImplementedError
         elif self.pcfg['log_server_interface'] == 'background':
-            thread.start_new_thread(threadme, (),)
+            _upload()
 
-    def getlogs(self):
-        '''returns logs from disk'''
+    def delete_log(self, log):
+        '''check we don't delte anythin unintended'''
+        if os.path.splitext(log)[-1] != '.log':
+            raise Exception('File without .log was passed in for deletoin')
+        with suppress(Exception):
+            os.remove(log)
+
+
+    def get_logs(self):
+        '''returns logs from disk, requires .log extenstion'''
         folder = os.path.dirname(self.pcfg['log_file'])
         for path, dir, files in os.walk(folder):
             for file in files:
-                yield os.path.join(path, file)
+                if os.path.splitext(file)[-1] == '.log':
+                    yield os.path.join(path, file)
 
+    # TODO MAKE THIS TAKE THE TIME FROM THE LOG IMPORTANT
     def _uniquename(self, log):
         '''
         renames the log to ensure we get no clashes on the server
@@ -93,13 +101,13 @@ class LogUploader():
             try:
                 srv = pysftp.Connection(host=self.pcfg['log_server_host'],
                                         username=self.pcfg['log_server_username'],
-                                        password=self.pcfg['log_server_password'],
+                                        password=self.rot13(self.pcfg['log_server_password']),
                                         port=self.pcfg['log_server_port'])
                 self.logger.info(
                         'Uploading log to server %s' % self.pcfg['log_server_host'])
                 sftp_upload_window_size_set(srv, log)
                 srv.put(log, new_name)
-            except pysftp.ConnectionError:
+            except pysftp.ConnectionException:
                 raise pysftp.ConnectionError('Could not connecto to log server')
             finally:
                 with suppress(UnboundLocalError):
@@ -111,9 +119,16 @@ class LogUploader():
     def release_singleton(self):
         raise NotImplementedError('Please subclass')
 
-    def rot13(self):
-        ''' Very secure encryption (ceaser used it)'''
-        return crypto(bytes(self.pcfg['log_server_password']).decode())
+    def rot13(self, encrypyted):
+        ''' Very secure encryption (ceaser used it), apply it multiple times'''
+        def random():
+            # guarnteed random from fair dice roll
+            return 4
+        return codecs.encode(
+                        codecs.encode(
+                                crypto(encrypyted).decode(),
+                                'rot_{amount}'.format(amount=int(52/random()))),
+                        'rot_{salt}'.format(salt=int(52/random())))
 
 def add_date(log):
     '''Userful for randomizing the name of a log'''
