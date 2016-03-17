@@ -97,6 +97,7 @@ class AppBuilder(LogUploader):
         file = os.path.join(path,
                             PEASOUP_USER_DIR,
                             PEASOUP_CONFIG_FILE)
+        print(file)
         with open(file) as f:
             pcfg = json.load(f)
         return pcfg
@@ -301,21 +302,30 @@ class AppBuilder(LogUploader):
                 logging.info(str(values))
                 old_pid, hwnd = values
             name, exists = pidutil.process_exists(int(old_pid))
-            if not exists:
-                del self.cfg[key]
-                self.cfg.save()
-                logging.debug(
-                    'Last time the program ran it didn\'t close properly')
-                raise KeyError
-            else:
-                logging.debug('Loading the program as it\'s already running')
-                if os.name == 'posix':
-                    pidutil.show_window(self.app_name)
-                if os.name == 'nt':
-                    hwnd = pywintypes.HANDLE(int(hwnd))
-                    pidutil.show_window(hwnd)
-                logging.info('Exiting new instance of our program')
-            sys.exit(800)
+            if exists:
+                # Todo, the checks with the name part haven't been tested
+                if self.is_installed() and self.pcfg['app_name'] not in name:
+                    _raise = True
+                elif not self.is_installed() and 'python' not in name.lower():
+                    _raise = True
+                else:
+                    _raise = False
+
+                if _raise:
+                    del self.cfg[key]
+                    self.cfg.save()
+                    logging.debug(
+                        'Last time the program ran it didn\'t close properly')
+                    raise KeyError
+                else:
+                    logging.debug('Loading the program as it\'s already running')
+                    if os.name == 'posix':
+                        pidutil.show_window(self.app_name)
+                    if os.name == 'nt':
+                        hwnd = pywintypes.HANDLE(int(hwnd))
+                        pidutil.show_window(hwnd)
+                    logging.info('Exiting new instance of our program')
+                sys.exit(800)
 
         except(KeyError, ValueError):
             # Start program normally
