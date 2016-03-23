@@ -396,6 +396,26 @@ class AppBuilder(LogUploader):
         logging.info('session time: {0} minutes'.format(session_time))
         logging.info('End..')
 
+    @staticmethod
+    def rel_path(*file_path):
+        '''
+        gives relative paths to files, works when frozen or unfrozen
+        to get the root path just pass in the string __file__
+        '''
+        if hasattr(sys, 'frozen'):
+            if file_path[0] == '__file__':
+                return sys.executable
+            return os.path.join(os.path.dirname(sys.executable), *file_path)
+        else:
+            try:
+                main_file = AppBuilder.main_file
+            except AttributeError:
+                # The first call setting up the instance
+                main_file = inspect.stack()[1].filename
+            if file_path[0] == '__file__':
+                print(os.path.realpath(main_file))
+                return os.path.realpath(main_file)
+            return os.path.join(os.path.dirname(main_file), *file_path)
 
 def setup_logger(log_file):
     '''One function call to set up logging with some nice logs about the machine'''
@@ -477,4 +497,5 @@ def setup_raven():
     handler.setLevel(pcfg["raven_loglevel"])
     setup_logging(handler)
     return client
+
 
