@@ -432,10 +432,16 @@ def set_windows_permissions(filename):
 
     http://timgolden.me.uk/python/win32_how_do_i/add-security-to-a-file.html
     '''
+    #Todo rename this to allow_all, also make international not just for english..
     if os.name == 'nt':
-        everyone, domain, type = win32security.LookupAccountName(
+        try:
+            everyone, domain, type = win32security.LookupAccountName(
             "", "Everyone")
-        #~ user, domain, type = win32security.LookupAccountName ("", win32api.GetUserName())
+        except Exception:
+            # Todo fails on non english langauge systesm ... FU WINDOWS
+            # Just allow permission for the current user then...
+            everyone, domain, type = win32security.LookupAccountName ("", win32api.GetUserName())
+        # ~ user, domain, type = win32security.LookupAccountName ("", win32api.GetUserName())
         #~ userx, domain, type = win32security.LookupAccountName ("", "User")
         #~ usery, domain, type = win32security.LookupAccountName ("", "User Y")
 
