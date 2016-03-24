@@ -411,7 +411,7 @@ class AppBuilder(LogUploader):
                 main_file = AppBuilder.main_file
             except AttributeError:
                 # The first call setting up the instance
-                main_file = inspect.stack()[1].filename
+                main_file = inspect.stack()[1][1]
             if file_path[0] == '__file__':
                 print(os.path.realpath(main_file))
                 return os.path.realpath(main_file)
