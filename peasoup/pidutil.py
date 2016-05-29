@@ -19,44 +19,26 @@ if os.name == 'nt':
     import win32process
     import win32con
 
-def process_exists(func=None): 
+def process_exists(pid=None):
     """
-Evaluates a Pid Value (returned by a passed function or defaults to the currently foucsed window)
-against the current open programs, if there is a match returns the pid  and name of the program 
-otherwise returns None
+    Evaluates a Pid Value defaults to the currently foucsed window
+    against the current open programs,
+    if there is a match returns the process name and pid
+    otherwise returns None, None
     """
-    pid_table = psutil.process_iter()
-    if func == None: 
-        pid = current_pid()      
-    else: 
-        try:
-            pid = func()    
-        except TypeError:
-            pid = func
-    for item in pid_table:
-        if item.pid == pid:
-            pname = psutil.Process(item.pid).name()
-            if os.name == 'nt':
-                pname = pname[:-4]          # removiing .exe from end
-            return pname, item.pid
+    if not pid:
+        pid = current_pid()
+    elif callable(pid):
+        pid = pid()
+
+    if pid and psutil.pid_exists(pid):
+        pname = psutil.Process(pid).name()
+        if os.name == 'nt':
+            return os.path.splitext(pname)[0], pid
+        return pname, pid
     return None, None
-    
-    #~ for i in pid_table:
-        #~ if i.name == program.lower() and i.pid == pid:   #Checking for a match of .name and .pid in current pids on system
-            #~ current_program_name = i.name
-            #~ print([i.name, attached_Page.name, i.pid, pid, current_program_name,'in if test'])
-            #~ return pid
-    #for i in pid_table:        SECOND TEST METHOD TO GO HERE IF A DIFF PID BUT SAME NAME RETURNS!!! I.E 2 firefox browsers zz
-    #   if i.name==attached_Page.name and 
-"""
-        try:
-            if str(psutil.Process(i).name) == name: 
-                #p = psutil.process_iter()
-                return False
-        except:
-            pass
-    return False
-""" 
+
+
 def get_window_id(): #used by xdotool, good idea to save as reference   #this is window id of currently focused window
     cmd=['xdotool','getactivewindow']        # Gives a unique window id which we will use to get our PID    #TBD this method meant to be better supposingly, trying it out if no errors we all good
     #~ cmd=['xdotool','getwindowfocus']        # Gives a unique window id which we will use to get our PID
@@ -70,7 +52,7 @@ def current_pid():
     if os.name == 'nt':
         hwnd = win32gui.GetForegroundWindow()
         _, pid = win32process.GetWindowThreadProcessId(hwnd)
-    else:   
+    else:
         window_id = get_window_id()
         cmd=["xdotool","getwindowpid", window_id]   # Uses the Window Id to find the PID
         args = subprocess.Popen(cmd,stdout = subprocess.PIPE, stderr= subprocess.PIPE).communicate()

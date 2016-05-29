@@ -1,4 +1,4 @@
-#~ Copyright 2015 Timothy C Eichler (c) , All rights reserved.
+# Copyright 2015 Timothy C Eichler (c) , All rights reserved.
 '''
 see design spec
 '''
