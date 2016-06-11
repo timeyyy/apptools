@@ -46,7 +46,7 @@ class CfgDict(dict):
     This is a collection of methods for our config dict
     Pass in the old dict and wrap on some shiny new methods
 
-    This is jus like a decorator but i'm not using the 
+    This is jus like a decorator but i'm not using the
     explict syntax on it #TODO
     '''
     def __init__(self, app, cfg):
@@ -110,7 +110,7 @@ class AppBuilder(LogUploader):
         The file will only be created if it doesn't exits
 
         also sets up the first_run attribute.
-        
+
         also sets correct windows permissions
 
         you can add custom stuff to the config by doing
