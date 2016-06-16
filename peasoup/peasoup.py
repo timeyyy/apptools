@@ -9,6 +9,7 @@ import time
 import inspect
 import logging
 
+import appdirs
 from timstools import ignored as suppress
 
 from peasoup import pidutil       # Todo delete this after done integrating get pid
@@ -80,7 +81,8 @@ class AppBuilder(LogUploader):
     main file is required to get the abspath of the script
     '''
 
-    def __init__(self, main_file):
+    def __init__(self, main_file, pcfg_path=None, pcfg_name=None):
+        logging.warning('PEASOUP pcfg_path needs to be finished coded')
         AppBuilder.main_file = main_file
         self.pcfg = self.get_pcfg()
         self.app_name = self.pcfg['app_name']
@@ -179,7 +181,7 @@ class AppBuilder(LogUploader):
             return 0
 
     # http://stackoverflow.com/questions/16872448/c-sharp-write-and-read-appsettings-and-log-files-best-practice-uac-program-file
-    def uac_bypass(self, file=None, create=False, overwrite=False):
+    def get_appdir(self, portable_path=None, folder=None, create=False):
         '''
         path = uac_bypass(file)
 
@@ -212,41 +214,41 @@ class AppBuilder(LogUploader):
 
         '''
         if self.is_installed():
-            if os.name == 'nt':
-                # tbd check if xp returns this also note htis is not required
-                # for xp admin security stuff its just a consitancy thing..
-                if platform.win32_ver()[0] == 'xp':
-                    path = os.path.join(
-                        'C:',
-                        'Documents and Settings',
-                        os.getenv('USERNAME'),
-                        'Application Data',
-                        self.app_name)
-                else:
-                    path = os.path.join(r'C:\ProgramData', self.app_name)
-                os.makedirs(path, exist_ok=True)
+            appdir = appdirs.user_data_dir(self.app_name)
+        elif portable_path:
+            appdir = portable_path
+            if not folder:
+                folder = 'data^-^'
         else:
-            path = os.getcwd()
+            appdir = os.getcwd()
+
+        if folder:
+            path = os.path.join(appdir, folder)
+        else:
+            path = appdir
 
         if create:
-            logging.info(
-                'Uac Bypass - Attempting to Create: %s' %
-                os.path.join(
-                    path,
-                    file))
-            TO = os.path.join(path, file)
-            if overwrite and overwrite != 'get':
-                new_file = open(TO, 'w')
-                new_file.close()
-            elif not os.path.exists(TO):
-                new_file = open(TO, 'w')
-                new_file.close()
-            elif overwrite != 'get':
-                raise FileExistsError
-        if not file:
-            return path
-        else:
-            return os.path.join(path, file)
+            os.makedirs(path, exist_ok=1)
+        return path
+
+
+    def init_file(self, path, file, create=False, overwrite=False):
+        logging.info(
+            'Uac Bypass - Attempting to Create: %s' %
+            os.path.join(
+                path,
+                file))
+        TO = os.path.join(path, file)
+        if overwrite and overwrite != 'get':
+            new_file = open(TO, 'w')
+            new_file.close()
+        elif not os.path.exists(TO):
+            new_file = open(TO, 'w')
+            new_file.close()
+        elif overwrite != 'get':
+            raise FileExistsError
+        return os.path.join(path, file)
+
 
     def check_if_open(self, path=None, appdata=False, verbose=False):
         '''
