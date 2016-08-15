@@ -227,6 +227,8 @@ class AppBuilder(LogUploader):
         else:
             path = appdir
 
+        path = os.path.realpath(path)
+
         if create:
             os.makedirs(path, exist_ok=1)
         return path
@@ -415,7 +417,6 @@ class AppBuilder(LogUploader):
                 # The first call setting up the instance
                 main_file = inspect.stack()[1][1]
             if file_path[0] == '__file__':
-                print(os.path.realpath(main_file))
                 return os.path.realpath(main_file)
             return os.path.join(os.path.dirname(main_file), *file_path)
 
