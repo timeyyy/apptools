@@ -78,7 +78,7 @@ class AppBuilder(LogUploader):
     the shutdown function and use the check_if_open function you will
     need to run the functions in self.shutdown_cleanup on shutdown
 
-    main file is required to get the abspath of the script
+    main_file is required to get the abspath of the script
     '''
 
     def __init__(self, main_file, pcfg_path=None, pcfg_name=None):
@@ -99,7 +99,6 @@ class AppBuilder(LogUploader):
         file = os.path.join(path,
                             PEASOUP_USER_DIR,
                             PEASOUP_CONFIG_FILE)
-        print(file)
         with open(file) as f:
             pcfg = json.load(f)
         return pcfg
@@ -420,7 +419,7 @@ class AppBuilder(LogUploader):
                 return os.path.realpath(main_file)
             return os.path.join(os.path.dirname(main_file), *file_path)
 
-def setup_logger(log_file):
+def setup_logger(log_file, level=logging.DEBUG):
     '''One function call to set up logging with some nice logs about the machine'''
     cfg = AppBuilder.get_pcfg()
     logger = cfg['log_module']
@@ -433,7 +432,7 @@ def setup_logger(log_file):
     logging.basicConfig(
         filename=log_file,
         filemode='w',
-        level=logging.INFO,
+        level=level,
         format='%(asctime)s:%(levelname)s: %(message)s')  # one run
     logging.debug('System is: %s' % platform.platform())
     logging.debug('Python archetecture is: %s' % platform.architecture()[0])
