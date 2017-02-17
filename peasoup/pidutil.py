@@ -63,23 +63,43 @@ def current_pid():
     except (ValueError, TypeError): 
         return None
 
-def moveWindow(window_id,x,y):
+def move_active_window(x, y):
     """
-    Moves a window to a given position given the window_id and absolute co ordinates,
+    Moves the active window to a given position given the window_id and absolute co ordinates,
     --sync option auto passed in, will wait until actually moved before giving  control back to us
-    """
-    #~ cmd=['xdotool','windowmap', Holder.data]   # Command to set window focus
-    cmd=['xdotool','windowmove', ('%s %s %s') % (window_id,x,y)]   # Command to move window
-    args = subprocess.Popen(cmd, stdout = subprocess.PIPE, stderr= subprocess.PIPE).communicate()
-    print(args[1])
-    #args=str(args[0])                      # Just take the output not the errors from the tuple
-    #args=only_numerics(args) 
 
-#~ import platform
-#~ print(platform.node())
+    will do nothing if the window is maximized
+    """
+    window_id = get_window_id()
+    cmd=['xdotool','windowmove', window_id, str(x), str(y)]
+    subprocess.Popen(cmd, stdout = subprocess.PIPE, stderr= subprocess.PIPE).communicate()
+
+def get_active_window_pos():
+    '''screen coordinates massaged so that movewindow command works to
+    restore the window to the same position
+    returns x, y
+    '''
+    # http://stackoverflow.com/questions/26050788/in-bash-on-ubuntu-14-04-unity-how-can-i-get-the-total-size-of-an-open-window-i/26060527#26060527
+    cmd = ['xdotool','getactivewindow', 'getwindowgeometry']
+    res = subprocess.Popen(cmd, stdout = subprocess.PIPE, stderr= subprocess.PIPE).communicate()
+    stdout = res[0].decode('utf-8').splitlines()
+    pos = stdout[1].split(':')[1].split(',')
+    geo = stdout[2].split(':')[1].split('x')
+    x, y = int(pos[0].strip()), int(pos[1].split('(')[0].strip())
+    w, h = int(geo[0].strip()), int(geo[1].strip())
+
+    # get the window decorations
+    window_id = get_window_id()
+    cmd = ['xprop', '_NET_FRAME_EXTENTS', '-id', window_id]
+    res = subprocess.Popen(cmd, stdout = subprocess.PIPE, stderr= subprocess.PIPE).communicate()
+    decos = res[0].decode('utf-8').split('=')[1].split(',')
+    l, r = int(decos[0].strip()), int(decos[1].strip())
+    t, b = int(decos[2].strip()), int(decos[3].strip())
+
+    return x-l, y-t
 
 from socket import gethostname
-    
+
 def listpid(toggle='basic'): # Add method to exclude elements from list
     '''list pids'''
     proc=psutil.process_iter()# evalute if its better to keep one instance of this or generate here?
@@ -189,8 +209,8 @@ def get_titles():
 
 if __name__ == '__main__':
     
-    from pprint import pprint
-    pprint(list(get_titles()))
+    # from pprint import pprint
+    # pprint(list(get_titles()))
     # print(get_titles())
     pass
     #~ foregroundWindow('Mozilla Firefox')
