@@ -240,6 +240,8 @@ class AppBuilder(LogUploader):
                 path,
                 file))
         TO = os.path.join(path, file)
+        if create:
+            os.makedirs(path, exist_ok=1)
         if overwrite and overwrite != 'get':
             new_file = open(TO, 'w')
             new_file.close()
