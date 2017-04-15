@@ -2,7 +2,7 @@ from setuptools import setup, find_packages # Always prefer setuptools over dist
 from os import path
 setup(
 	name = 'peasoup',
-	version='0.1.3',
+	version='0.1.4',
 	description = 'Common tools for application deployment!',
 	url = 'https://github.com/timeyyy/apptools',
 	author='timothy eichler',
